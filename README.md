@@ -8,9 +8,8 @@ This repository serves as a gallery and a benchmark for the creative coding capa
 
 Since every game is a self-contained environment, getting started is simple:
 
-1. **Clone the repo:** `git clone https://github.com`
-2. **Browse:** Navigate to any game file in the directory.
-3. **Launch:** Double-click the `.html` file to play instantly in your preferred web browser.
+1. **download the files** do this by navigating to the releases tab and clicking on the game title under files
+2. **open the file** enjoy!
 
 ## 🛠️ The Constraints
 
