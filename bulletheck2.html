@@ -1,0 +1,1410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI Makes a Game – Shop Edition</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #05060a;
+      color: #f0f0f0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      overflow: hidden;
+    }
+    #game-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: radial-gradient(circle at center, #101320 0, #05060a 60%, #000 100%);
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      image-rendering: pixelated;
+      cursor: crosshair;
+    }
+    #hud {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      pointer-events: none;
+      font-size: 14px;
+      text-shadow: 0 0 4px #000;
+    }
+    #hud-left {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    #hud-right {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: flex-end;
+    }
+    .bar {
+      width: 220px;
+      height: 16px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.08);
+      overflow: hidden;
+      box-shadow: 0 0 6px rgba(0,0,0,0.8);
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 8px;
+      background: linear-gradient(90deg, #ff4b4b, #ffb347);
+      transition: width 0.1s linear;
+    }
+    .label {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+    #wave-label {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+    #wave-announce {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 32px;
+      font-weight: 700;
+      text-shadow: 0 0 12px #000;
+      opacity: 0;
+      transition: opacity 0.4s ease-out;
+      pointer-events: none;
+    }
+    #ability-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .ability-slot {
+      position: relative;
+      width: 48px;
+      height: 48px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.06);
+      box-shadow: 0 0 6px rgba(0,0,0,0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      text-align: center;
+    }
+    .ability-key {
+      position: absolute;
+      top: 2px;
+      left: 4px;
+      font-size: 10px;
+      opacity: 0.7;
+    }
+    .ability-lock {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .ability-cd {
+      position: absolute;
+      bottom: 2px;
+      right: 4px;
+      font-size: 10px;
+      opacity: 0.8;
+    }
+    #help {
+      font-size: 11px;
+      opacity: 0.7;
+      max-width: 260px;
+      text-align: right;
+    }
+    #coins-label {
+      font-size: 13px;
+      font-weight: 600;
+    }
+    #game-over-overlay {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at center, rgba(0,0,0,0.8), rgba(0,0,0,0.98));
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #f5f5f5;
+      font-size: 18px;
+      text-align: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s ease-out;
+    }
+    #game-over-overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    #game-over-overlay button {
+      margin-top: 16px;
+      padding: 8px 18px;
+      border-radius: 999px;
+      border: none;
+      background: linear-gradient(90deg, #ff4b4b, #ffb347);
+      color: #111;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(0,0,0,0.8);
+    }
+    #game-over-overlay button:hover {
+      filter: brightness(1.1);
+    }
+
+    /* Shop overlay */
+    #shop-overlay {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at center, rgba(0,0,0,0.85), rgba(0,0,0,0.98));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease-out;
+    }
+    #shop-overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    #shop-panel {
+      width: min(640px, 90vw);
+      max-height: 80vh;
+      background: rgba(10,12,20,0.96);
+      border-radius: 16px;
+      box-shadow: 0 0 24px rgba(0,0,0,0.9);
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow: hidden;
+    }
+    #shop-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    #shop-coins {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    #shop-list {
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 4px;
+      margin: 6px 0;
+    }
+    .shop-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 6px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.03);
+      margin-bottom: 6px;
+      gap: 8px;
+    }
+    .shop-item-main {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .shop-item-name {
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .shop-item-desc {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+    .shop-item-meta {
+      font-size: 11px;
+      opacity: 0.7;
+    }
+    .shop-buy {
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: none;
+      background: linear-gradient(90deg, #4b9bff, #7cf5ff);
+      color: #111;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .shop-buy:disabled {
+      cursor: default;
+      background: rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.5);
+    }
+    #shop-continue {
+      margin-top: 4px;
+      align-self: flex-end;
+      padding: 8px 18px;
+      border-radius: 999px;
+      border: none;
+      background: linear-gradient(90deg, #ff4b4b, #ffb347);
+      color: #111;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(0,0,0,0.8);
+    }
+    #shop-continue:hover {
+      filter: brightness(1.1);
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="game"></canvas>
+
+    <div id="hud">
+      <div id="hud-left">
+        <div class="label">HP</div>
+        <div class="bar"><div id="hp-bar" class="bar-fill"></div></div>
+        <div class="label">Wave / Kills</div>
+        <div id="wave-label">Wave 1 • Kills 0</div>
+        <div class="label">Abilities</div>
+        <div id="ability-row">
+          <div class="ability-slot" id="ability-freeze">
+            <div class="ability-key">Q</div>
+            Freeze
+            <div class="ability-lock">LOCKED</div>
+            <div class="ability-cd"></div>
+          </div>
+          <div class="ability-slot" id="ability-explode">
+            <div class="ability-key">E</div>
+            Explode
+            <div class="ability-lock">LOCKED</div>
+            <div class="ability-cd"></div>
+          </div>
+          <div class="ability-slot" id="ability-sentry">
+            <div class="ability-key">R</div>
+            Sentry
+            <div class="ability-lock">LOCKED</div>
+            <div class="ability-cd"></div>
+          </div>
+          <div class="ability-slot" id="ability-walls">
+            <div class="ability-key">F</div>
+            Walls
+            <div class="ability-lock">LOCKED</div>
+            <div class="ability-cd"></div>
+          </div>
+        </div>
+      </div>
+      <div id="hud-right">
+        <div id="coins-label">Coins: 0</div>
+        <div id="help">
+          WASD to move • Mouse or Space to shoot<br/>
+          Q/E/R/F: abilities (unlock via shop)<br/>
+          Boss every 5 waves • Place sentries & walls strategically
+        </div>
+      </div>
+    </div>
+
+    <div id="wave-announce"></div>
+
+    <div id="game-over-overlay">
+      <div id="game-over-text">Game Over</div>
+      <button id="restart-btn">Restart</button>
+    </div>
+
+    <div id="shop-overlay">
+      <div id="shop-panel">
+        <div id="shop-title">Upgrade Shop</div>
+        <div id="shop-coins">Coins: 0</div>
+        <div id="shop-list"></div>
+        <button id="shop-continue">Start Next Wave</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ------------------------------------------------------------
+    // Basic setup
+    // ------------------------------------------------------------
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+
+    function resize() {
+      canvas.width = canvas.clientWidth;
+      canvas.height = canvas.clientHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    const WORLD_W = 4800;
+    const WORLD_H = 4800;
+
+    const camera = { x: 0, y: 0 };
+
+    // ------------------------------------------------------------
+    // Player
+    // ------------------------------------------------------------
+    const player = {
+      x: WORLD_W / 2,
+      y: WORLD_H / 2,
+      radius: 16,
+      speed: 3.2,
+      hp: 100,
+      maxHp: 100,
+      hitFlash: 0,
+      facing: 0,
+      kills: 0,
+      coins: 0,
+      freezeCd: 0,
+      explodeCd: 0,
+      sentryCd: 0,
+      wallCd: 0
+    };
+
+    let gameOver = false;
+    let shopOpen = false;
+
+    // damage / ability scaling
+    let bulletDamage = 25;
+    let freezeDuration = 120;   // frames
+    let explodeDamage = 120;
+    let sentryCdFactor = 1;     // lower = faster
+    let wallHpBase = 160;
+
+    // ------------------------------------------------------------
+    // Input
+    // ------------------------------------------------------------
+    const keys = {};
+    window.addEventListener('keydown', (e) => {
+      keys[e.key.toLowerCase()] = true;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        manualShoot();
+      }
+    });
+    window.addEventListener('keyup', (e) => {
+      keys[e.key.toLowerCase()] = false;
+    });
+
+    let mouseWorld = { x: player.x, y: player.y };
+    let mouseDown = false;
+
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const sx = e.clientX - rect.left;
+      const sy = e.clientY - rect.top;
+      mouseWorld.x = sx + camera.x;
+      mouseWorld.y = sy + camera.y;
+      player.facing = Math.atan2(mouseWorld.y - player.y, mouseWorld.x - player.x);
+    });
+
+    canvas.addEventListener('mousedown', (e) => {
+      if (e.button === 0) {
+        mouseDown = true;
+        manualShoot();
+      }
+    });
+    canvas.addEventListener('mouseup', (e) => {
+      if (e.button === 0) {
+        mouseDown = false;
+      }
+    });
+
+    // ------------------------------------------------------------
+    // Abilities & unlocks
+    // ------------------------------------------------------------
+    const abilityUnlocks = {
+      freeze: false,
+      explode: false,
+      sentry: false,
+      walls: false
+    };
+
+    const abilityUI = {
+      freeze: document.querySelector('#ability-freeze'),
+      explode: document.querySelector('#ability-explode'),
+      sentry: document.querySelector('#ability-sentry'),
+      walls: document.querySelector('#ability-walls')
+    };
+
+    function updateAbilityUI() {
+      const map = [
+        ['freeze', player.freezeCd],
+        ['explode', player.explodeCd],
+        ['sentry', player.sentryCd],
+        ['walls', player.wallCd]
+      ];
+      for (const [name, cd] of map) {
+        const slot = abilityUI[name];
+        const lock = slot.querySelector('.ability-lock');
+        const cdLabel = slot.querySelector('.ability-cd');
+        if (abilityUnlocks[name]) {
+          lock.style.display = 'none';
+        } else {
+          lock.style.display = 'flex';
+        }
+        if (cd > 0 && abilityUnlocks[name]) {
+          cdLabel.textContent = (cd / 60).toFixed(1) + 's';
+        } else {
+          cdLabel.textContent = '';
+        }
+      }
+    }
+
+    // ------------------------------------------------------------
+    // Entities
+    // ------------------------------------------------------------
+    const enemies = [];
+    const bullets = [];
+    const enemyBullets = [];
+    const sentries = [];
+    const walls = [];
+
+    let bulletIdCounter = 1;
+
+    const SENTRY_RANGE = 420;
+    const SENTRY_FIRE_COOLDOWN_BASE = 40;
+
+    // ------------------------------------------------------------
+    // Enemy types
+    // ------------------------------------------------------------
+    const ENEMY_TYPES = {
+      grunt: {
+        color: '#55ff88',
+        baseHp: 30,
+        hpPerWave: 6,
+        baseSpeed: 1.4,
+        speedPerWave: 0.05,
+        radius: 14,
+        reward: 1
+      },
+      speeder: {
+        color: '#ffdd55',
+        baseHp: 18,
+        hpPerWave: 4,
+        baseSpeed: 2.4,
+        speedPerWave: 0.08,
+        radius: 10,
+        reward: 1
+      },
+      tank: {
+        color: '#ff5555',
+        baseHp: 80,
+        hpPerWave: 12,
+        baseSpeed: 0.9,
+        speedPerWave: 0.03,
+        radius: 20,
+        reward: 3
+      },
+      sniper: {
+        color: '#66aaff',
+        baseHp: 30,
+        hpPerWave: 10,
+        baseSpeed: 0.8,
+        speedPerWave: 0.03,
+        radius: 12,
+        reward: 3
+      },
+      swarm: {
+        color: '#ff66ff',
+        baseHp: 10,
+        hpPerWave: 2,
+        baseSpeed: 2.8,
+        speedPerWave: 0.08,
+        radius: 8,
+        reward: 1
+      },
+      boss: {
+        color: '#ff4444',
+        baseHp: 800,
+        hpPerWave: 200,
+        baseSpeed: 1.0,
+        speedPerWave: 0.05,
+        radius: 40,
+        reward: 80
+      }
+    };
+
+    // ------------------------------------------------------------
+    // Wave manager
+    // ------------------------------------------------------------
+    const waveManager = {
+      wave: 1,
+      spawnLeft: 0,
+      spawnTimer: 0,
+      state: 'idle', // 'idle', 'spawning', 'fighting', 'shop'
+      isBossWave: false
+    };
+
+    const waveAnnounceEl = document.getElementById('wave-announce');
+    const waveLabelEl = document.getElementById('wave-label');
+    const hpBarEl = document.getElementById('hp-bar');
+    const coinsLabelEl = document.getElementById('coins-label');
+
+    function announceWave(text) {
+      waveAnnounceEl.textContent = text;
+      waveAnnounceEl.style.opacity = '1';
+      setTimeout(() => {
+        waveAnnounceEl.style.opacity = '0';
+      }, 1800);
+    }
+
+    function startWave() {
+      const w = waveManager.wave;
+      waveManager.isBossWave = (w % 5 === 0);
+
+      if (waveManager.isBossWave) {
+        waveManager.spawnLeft = 0;
+        spawnBoss();
+        announceWave('— BOSS WAVE ' + w + ' —');
+      } else {
+        waveManager.spawnLeft = 5 + w * 2;
+        announceWave('— WAVE ' + w + ' —');
+      }
+      waveManager.spawnTimer = 0;
+      waveManager.state = 'spawning';
+    }
+
+    function spawnEnemy() {
+      const w = waveManager.wave;
+      let type = 'grunt';
+      const r = Math.random();
+      if (w >= 2 && r < 0.25) type = 'speeder';
+      else if (w >= 3 && r < 0.45) type = 'tank';
+      else if (w >= 4 && r < 0.65) type = 'sniper';
+      else if (w >= 5 && r < 0.85) type = 'swarm';
+
+      const def = ENEMY_TYPES[type];
+
+      const side = Math.floor(Math.random() * 4);
+      let x, y;
+      if (side === 0) {
+        x = Math.random() * WORLD_W;
+        y = 40;
+      } else if (side === 1) {
+        x = Math.random() * WORLD_W;
+        y = WORLD_H - 40;
+      } else if (side === 2) {
+        x = 40;
+        y = Math.random() * WORLD_H;
+      } else {
+        x = WORLD_W - 40;
+        y = Math.random() * WORLD_H;
+      }
+
+      const hp = def.baseHp + def.hpPerWave * (w - 1);
+      const speed = def.baseSpeed + def.speedPerWave * (w - 1);
+
+      enemies.push({
+        type,
+        x,
+        y,
+        hp,
+        maxHp: hp,
+        speed,
+        radius: def.radius,
+        reward: def.reward,
+        frozen: 0,
+        isBoss: false,
+        patternTimer: 0
+      });
+    }
+
+    function spawnBoss() {
+      const w = waveManager.wave;
+      const def = ENEMY_TYPES.boss;
+      const hp = def.baseHp + def.hpPerWave * (w - 1);
+      const speed = def.baseSpeed + def.speedPerWave * (w - 1);
+
+      enemies.push({
+        type: 'boss',
+        x: WORLD_W / 2,
+        y: WORLD_H / 2 - 600,
+        hp,
+        maxHp: hp,
+        speed,
+        radius: def.radius,
+        reward: def.reward,
+        frozen: 0,
+        isBoss: true,
+        patternTimer: 0
+      });
+    }
+
+    // ------------------------------------------------------------
+    // Shooting
+    // ------------------------------------------------------------
+    function fireBulletTowards(targetX, targetY) {
+      if (gameOver || shopOpen) return;
+      if (bullets.length > 200) return;
+      const dx = targetX - player.x;
+      const dy = targetY - player.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist === 0) return;
+      const spd = 7;
+      bullets.push({
+        id: bulletIdCounter++,
+        x: player.x,
+        y: player.y,
+        vx: (dx / dist) * spd,
+        vy: (dy / dist) * spd,
+        r: 4,
+        life: 90
+      });
+    }
+
+    function manualShoot() {
+      if (gameOver || shopOpen) return;
+      fireBulletTowards(mouseWorld.x, mouseWorld.y);
+    }
+
+    // ------------------------------------------------------------
+    // Abilities
+    // ------------------------------------------------------------
+    function activateFreeze() {
+      if (!abilityUnlocks.freeze) return;
+      if (player.freezeCd > 0) return;
+      player.freezeCd = 60 * 8;
+      enemies.forEach(e => {
+        e.frozen = freezeDuration;
+      });
+    }
+
+    function activateExplode() {
+      if (!abilityUnlocks.explode) return;
+      if (player.explodeCd > 0) return;
+      player.explodeCd = 60 * 10;
+      const radius = 220;
+      enemies.forEach(e => {
+        const d = Math.hypot(e.x - player.x, e.y - player.y);
+        if (d <= radius) {
+          e.hp -= explodeDamage;
+        }
+      });
+    }
+
+    function activateSentry() {
+      if (!abilityUnlocks.sentry) return;
+      if (player.sentryCd > 0) return;
+      player.sentryCd = 60 * 12;
+      sentries.push({
+        x: player.x,
+        y: player.y,
+        cd: 0
+      });
+    }
+
+    function activateWall() {
+      if (!abilityUnlocks.walls) return;
+      if (player.wallCd > 0) return;
+      player.wallCd = 60 * 2;
+      tryPlaceWall(player.x, player.y);
+    }
+
+    // ------------------------------------------------------------
+    // Walls
+    // ------------------------------------------------------------
+    function tryPlaceWall(x, y) {
+      if (Math.hypot(x - player.x, y - player.y) < 40) return;
+
+      const nearby = walls.filter(w => Math.hypot(w.x - player.x, w.y - player.y) < 220);
+      if (nearby.length >= 8) return;
+
+      walls.push({
+        x,
+        y,
+        w: 48,
+        h: 14,
+        hp: wallHpBase
+      });
+    }
+
+    function circleRectCollide(cx, cy, cr, rx, ry, rw, rh) {
+      const closestX = Math.max(rx, Math.min(cx, rx + rw));
+      const closestY = Math.max(ry, Math.min(cy, ry + rh));
+      const dx = cx - closestX;
+      const dy = cy - closestY;
+      return (dx * dx + dy * dy) < (cr * cr);
+    }
+
+    // ------------------------------------------------------------
+    // Game over
+    // ------------------------------------------------------------
+    const gameOverOverlay = document.getElementById('game-over-overlay');
+    const gameOverText = document.getElementById('game-over-text');
+    const restartBtn = document.getElementById('restart-btn');
+
+    restartBtn.addEventListener('click', () => {
+      location.reload();
+    });
+
+    function triggerGameOver() {
+      if (gameOver) return;
+      gameOver = true;
+      gameOverText.textContent = 'Game Over – Wave ' + waveManager.wave + ' • Kills ' + player.kills;
+      gameOverOverlay.classList.add('show');
+    }
+
+    // ------------------------------------------------------------
+    // Shop
+    // ------------------------------------------------------------
+    const shopOverlay = document.getElementById('shop-overlay');
+    const shopTitleEl = document.getElementById('shop-title');
+    const shopCoinsEl = document.getElementById('shop-coins');
+    const shopListEl = document.getElementById('shop-list');
+    const shopContinueBtn = document.getElementById('shop-continue');
+
+    const upgrades = [
+      {
+        id: 'dmg',
+        name: 'Bullet Damage',
+        desc: '+5 damage per level.',
+        level: 0,
+        baseCost: 5,
+        costMult: 1.6,
+        apply() {
+          this.level++;
+          bulletDamage += 5;
+        }
+      },
+      {
+        id: 'speed',
+        name: 'Move Speed',
+        desc: '+0.3 movement speed per level.',
+        level: 0,
+        baseCost: 5,
+        costMult: 1.6,
+        apply() {
+          this.level++;
+          player.speed += 0.3;
+        }
+      },
+      {
+        id: 'hp',
+        name: 'Max HP',
+        desc: '+20 max HP per level.',
+        level: 0,
+        baseCost: 6,
+        costMult: 1.7,
+        apply() {
+          this.level++;
+          player.maxHp += 20;
+          player.hp += 20;
+        }
+      },
+      {
+        id: 'unlock_freeze',
+        name: 'Unlock Freeze (Q)',
+        desc: 'Freeze enemies briefly around the map.',
+        level: 0,
+        maxLevel: 1,
+        baseCost: 8,
+        costMult: 999,
+        apply() {
+          abilityUnlocks.freeze = true;
+          this.level = 1;
+        }
+      },
+      {
+        id: 'freeze_power',
+        name: 'Freeze Power',
+        desc: '+0.5s freeze duration per level.',
+        level: 0,
+        baseCost: 7,
+        costMult: 1.7,
+        apply() {
+          this.level++;
+          freezeDuration += 30;
+        }
+      },
+      {
+        id: 'unlock_explode',
+        name: 'Unlock Explode (E)',
+        desc: 'Explosive blast around you.',
+        level: 0,
+        maxLevel: 1,
+        baseCost: 10,
+        costMult: 999,
+        apply() {
+          abilityUnlocks.explode = true;
+          this.level = 1;
+        }
+      },
+      {
+        id: 'explode_power',
+        name: 'Explode Power',
+        desc: '+40 explosion damage per level.',
+        level: 0,
+        baseCost: 9,
+        costMult: 1.7,
+        apply() {
+          this.level++;
+          explodeDamage += 40;
+        }
+      },
+      {
+        id: 'unlock_sentry',
+        name: 'Unlock Sentry (R)',
+        desc: 'Place an auto-firing sentry turret.',
+        level: 0,
+        maxLevel: 1,
+        baseCost: 12,
+        costMult: 999,
+        apply() {
+          abilityUnlocks.sentry = true;
+          this.level = 1;
+        }
+      },
+      {
+        id: 'sentry_rate',
+        name: 'Sentry Fire Rate',
+        desc: 'Sentries fire faster each level.',
+        level: 0,
+        baseCost: 10,
+        costMult: 1.7,
+        apply() {
+          this.level++;
+          sentryCdFactor = Math.max(0.4, sentryCdFactor - 0.1);
+        }
+      },
+      {
+        id: 'unlock_walls',
+        name: 'Unlock Walls (F)',
+        desc: 'Place walls to shape the battlefield.',
+        level: 0,
+        maxLevel: 1,
+        baseCost: 10,
+        costMult: 999,
+        apply() {
+          abilityUnlocks.walls = true;
+          this.level = 1;
+        }
+      },
+      {
+        id: 'wall_hp',
+        name: 'Wall Durability',
+        desc: '+40 HP per wall per level.',
+        level: 0,
+        baseCost: 9,
+        costMult: 1.7,
+        apply() {
+          this.level++;
+          wallHpBase += 40;
+        }
+      }
+    ];
+
+    function getUpgradeCost(upg) {
+      if (upg.maxLevel && upg.level >= upg.maxLevel) return null;
+      if (upg.currentCost == null) return upg.baseCost;
+      return upg.currentCost;
+    }
+
+    function renderShop() {
+      shopTitleEl.textContent = 'Upgrade Shop – Wave ' + waveManager.wave + ' Complete';
+      shopCoinsEl.textContent = 'Coins: ' + player.coins;
+      shopListEl.innerHTML = '';
+
+      upgrades.forEach(upg => {
+        const cost = getUpgradeCost(upg);
+        const row = document.createElement('div');
+        row.className = 'shop-item';
+
+        const main = document.createElement('div');
+        main.className = 'shop-item-main';
+
+        const nameEl = document.createElement('div');
+        nameEl.className = 'shop-item-name';
+        nameEl.textContent = upg.name + ' (Lv ' + upg.level + (upg.maxLevel ? '/' + upg.maxLevel : '') + ')';
+
+        const descEl = document.createElement('div');
+        descEl.className = 'shop-item-desc';
+        descEl.textContent = upg.desc;
+
+        const metaEl = document.createElement('div');
+        metaEl.className = 'shop-item-meta';
+        if (cost == null) {
+          metaEl.textContent = 'Maxed';
+        } else {
+          metaEl.textContent = 'Cost: ' + cost;
+        }
+
+        main.appendChild(nameEl);
+        main.appendChild(descEl);
+        main.appendChild(metaEl);
+
+        const btn = document.createElement('button');
+        btn.className = 'shop-buy';
+
+        if (cost == null) {
+          btn.textContent = 'Maxed';
+          btn.disabled = true;
+        } else {
+          btn.textContent = 'Buy (' + cost + ')';
+          if (player.coins < cost) {
+            btn.disabled = true;
+          }
+        }
+
+        btn.addEventListener('click', () => {
+          const c = getUpgradeCost(upg);
+          if (c == null) return;
+          if (player.coins < c) return;
+          player.coins -= c;
+          upg.apply();
+          upg.currentCost = Math.round(c * upg.costMult);
+          renderShop();
+        });
+
+        row.appendChild(main);
+        row.appendChild(btn);
+        shopListEl.appendChild(row);
+      });
+    }
+
+    function openShop() {
+      shopOpen = true;
+      waveManager.state = 'shop';
+      renderShop();
+      shopOverlay.classList.add('show');
+    }
+
+    shopContinueBtn.addEventListener('click', () => {
+      shopOverlay.classList.remove('show');
+      shopOpen = false;
+      waveManager.wave++;
+      waveManager.state = 'idle';
+    });
+
+    // ------------------------------------------------------------
+    // Update loop
+    // ------------------------------------------------------------
+    function update() {
+      // HUD always updates
+      const hpPct = player.hp / player.maxHp;
+      hpBarEl.style.width = (Math.max(0, Math.min(1, hpPct)) * 100) + '%';
+      waveLabelEl.textContent = 'Wave ' + waveManager.wave + ' • Kills ' + player.kills;
+      coinsLabelEl.textContent = 'Coins: ' + player.coins;
+      updateAbilityUI();
+
+      if (gameOver) return;
+      if (shopOpen) return;
+
+      // movement
+      let mvx = 0, mvy = 0;
+      if (keys['w']) mvy -= 1;
+      if (keys['s']) mvy += 1;
+      if (keys['a']) mvx -= 1;
+      if (keys['d']) mvx += 1;
+      const mag = Math.hypot(mvx, mvy);
+      if (mag > 0) {
+        mvx /= mag;
+        mvy /= mag;
+      }
+
+      let newX = player.x + mvx * player.speed;
+      let newY = player.y + mvy * player.speed;
+
+      newX = Math.max(player.radius, Math.min(WORLD_W - player.radius, newX));
+      newY = Math.max(player.radius, Math.min(WORLD_H - player.radius, newY));
+
+      let blocked = false;
+      for (const w of walls) {
+        if (circleRectCollide(newX, newY, player.radius, w.x - w.w / 2, w.y - w.h / 2, w.w, w.h)) {
+          blocked = true;
+          break;
+        }
+      }
+      if (!blocked) {
+        player.x = newX;
+        player.y = newY;
+      }
+
+      // abilities input
+      if (keys['q']) activateFreeze();
+      if (keys['e']) activateExplode();
+      if (keys['r']) activateSentry();
+      if (keys['f']) activateWall();
+
+      // cooldowns
+      if (player.freezeCd > 0) player.freezeCd--;
+      if (player.explodeCd > 0) player.explodeCd--;
+      if (player.sentryCd > 0) player.sentryCd--;
+      if (player.wallCd > 0) player.wallCd--;
+
+      // wave spawning
+      if (waveManager.state === 'idle') {
+        startWave();
+      } else if (waveManager.state === 'spawning') {
+        if (!waveManager.isBossWave) {
+          if (waveManager.spawnLeft > 0) {
+            waveManager.spawnTimer--;
+            if (waveManager.spawnTimer <= 0) {
+              spawnEnemy();
+              waveManager.spawnLeft--;
+              waveManager.spawnTimer = 30;
+            }
+          } else {
+            waveManager.state = 'fighting';
+          }
+        } else {
+          waveManager.state = 'fighting';
+        }
+      } else if (waveManager.state === 'fighting') {
+        if (enemies.length === 0 && waveManager.spawnLeft === 0) {
+          openShop();
+        }
+      }
+
+      // enemies
+      for (let i = enemies.length - 1; i >= 0; i--) {
+        const e = enemies[i];
+
+        if (e.frozen > 0) e.frozen--;
+
+        const slowFactor = e.frozen > 0 ? 0.35 : 1;
+        const dx = player.x - e.x;
+        const dy = player.y - e.y;
+        const dist = Math.hypot(dx, dy) || 1;
+        const spd = e.speed * slowFactor;
+
+        let exNew = e.x + (dx / dist) * spd;
+        let eyNew = e.y + (dy / dist) * spd;
+
+        exNew = Math.max(e.radius, Math.min(WORLD_W - e.radius, exNew));
+        eyNew = Math.max(e.radius, Math.min(WORLD_H - e.radius, eyNew));
+
+        for (const w of walls) {
+          if (circleRectCollide(exNew, eyNew, e.radius, w.x - w.w / 2, w.y - w.h / 2, w.w, w.h)) {
+            w.hp -= 0.6;
+            exNew = e.x - (dx / dist) * spd * 0.4;
+            eyNew = e.y - (dy / dist) * spd * 0.4;
+          }
+        }
+
+        e.x = exNew;
+        e.y = eyNew;
+
+        const dToPlayer = Math.hypot(e.x - player.x, e.y - player.y);
+        if (dToPlayer < e.radius + player.radius) {
+          player.hp -= 0.25;
+          player.hitFlash = 6;
+        }
+
+        if (e.isBoss) {
+          e.patternTimer++;
+          if (e.patternTimer % 90 === 0) {
+            const patternType = Math.floor(Math.random() * 3);
+            if (patternType === 0) {
+              for (let k = 0; k < 16; k++) {
+                const ang = (k / 16) * Math.PI * 2;
+                enemyBullets.push({
+                  x: e.x,
+                  y: e.y,
+                  vx: Math.cos(ang) * 3,
+                  vy: Math.sin(ang) * 3,
+                  r: 5
+                });
+              }
+            } else if (patternType === 1) {
+              const bdx = player.x - e.x;
+              const bdy = player.y - e.y;
+              const baseAng = Math.atan2(bdy, bdx);
+              [-0.25, 0, 0.25].forEach(off => {
+                const ang = baseAng + off;
+                enemyBullets.push({
+                  x: e.x,
+                  y: e.y,
+                  vx: Math.cos(ang) * 4,
+                  vy: Math.sin(ang) * 4,
+                  r: 6
+                });
+              });
+            } else {
+              const base = (Date.now() / 200) % (Math.PI * 2);
+              for (let k = 0; k < 10; k++) {
+                const ang = base + (k / 10) * Math.PI * 2;
+                enemyBullets.push({
+                  x: e.x,
+                  y: e.y,
+                  vx: Math.cos(ang) * 2.5,
+                  vy: Math.sin(ang) * 2.5,
+                  r: 4
+                });
+              }
+            }
+          }
+        }
+
+        if (e.hp <= 0) {
+          player.kills++;
+          player.coins += e.reward;
+          enemies.splice(i, 1);
+        }
+      }
+
+      for (let i = walls.length - 1; i >= 0; i--) {
+        if (walls[i].hp <= 0) walls.splice(i, 1);
+      }
+
+      // bullets (player)
+      for (let i = bullets.length - 1; i >= 0; i--) {
+        const b = bullets[i];
+        b.x += b.vx;
+        b.y += b.vy;
+        b.life--;
+        if (b.life <= 0 ||
+            b.x < 0 || b.x > WORLD_W ||
+            b.y < 0 || b.y > WORLD_H) {
+          bullets.splice(i, 1);
+          continue;
+        }
+
+        let hit = false;
+        for (let j = enemies.length - 1; j >= 0; j--) {
+          const e = enemies[j];
+          const d = Math.hypot(b.x - e.x, b.y - e.y);
+          if (d < b.r + e.radius) {
+            e.hp -= bulletDamage;
+            hit = true;
+            break;
+          }
+        }
+        if (hit) bullets.splice(i, 1);
+      }
+
+      // enemy bullets
+      for (let i = enemyBullets.length - 1; i >= 0; i--) {
+        const b = enemyBullets[i];
+        b.x += b.vx;
+        b.y += b.vy;
+
+        if (b.x < 0 || b.x > WORLD_W || b.y < 0 || b.y > WORLD_H) {
+          enemyBullets.splice(i, 1);
+          continue;
+        }
+
+        const d = Math.hypot(b.x - player.x, b.y - player.y);
+        if (d < b.r + player.radius) {
+          player.hp -= 6;
+          player.hitFlash = 8;
+          enemyBullets.splice(i, 1);
+        }
+      }
+
+      // sentries
+      sentries.forEach(s => {
+        if (s.cd > 0) {
+          s.cd--;
+          return;
+        }
+        let nearest = null;
+        let nearDist = Infinity;
+        enemies.forEach(e => {
+          const d = Math.hypot(e.x - s.x, e.y - s.y);
+          if (d < SENTRY_RANGE && d < nearDist) {
+            nearDist = d;
+            nearest = e;
+          }
+        });
+        if (nearest && bullets.length < 200) {
+          const dx = nearest.x - s.x;
+          const dy = nearest.y - s.y;
+          const dist = Math.hypot(dx, dy) || 1;
+          const spd = 6;
+          bullets.push({
+            id: bulletIdCounter++,
+            x: s.x,
+            y: s.y,
+            vx: (dx / dist) * spd,
+            vy: (dy / dist) * spd,
+            r: 4,
+            life: 90
+          });
+          s.cd = Math.round(SENTRY_FIRE_COOLDOWN_BASE * sentryCdFactor);
+        }
+      });
+
+      if (player.hp < 0) player.hp = 0;
+      if (player.hp <= 0) {
+        triggerGameOver();
+      }
+
+      if (player.hitFlash > 0) player.hitFlash--;
+
+      camera.x = player.x - canvas.width / 2;
+      camera.y = player.y - canvas.height / 2;
+      camera.x = Math.max(0, Math.min(WORLD_W - canvas.width, camera.x));
+      camera.y = Math.max(0, Math.min(WORLD_H - canvas.height, camera.y));
+    }
+
+    // ------------------------------------------------------------
+    // Drawing
+    // ------------------------------------------------------------
+    function drawGrid() {
+      const spacing = 80;
+      ctx.save();
+      ctx.translate(-camera.x, -camera.y);
+      ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x <= WORLD_W; x += spacing) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, WORLD_H);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= WORLD_H; y += spacing) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(WORLD_W, y);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(0, 0, WORLD_W, WORLD_H);
+      ctx.restore();
+    }
+
+    function drawPlayer() {
+      ctx.save();
+      ctx.translate(player.x - camera.x, player.y - camera.y);
+      ctx.rotate(player.facing);
+      const flash = player.hitFlash > 0 ? '#ffffff' : '#66ffcc';
+      ctx.fillStyle = flash;
+      ctx.shadowColor = '#66ffcc';
+      ctx.shadowBlur = 18;
+      ctx.beginPath();
+      ctx.moveTo(18, 0);
+      ctx.lineTo(-10, -12);
+      ctx.lineTo(-10, 12);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawEnemies() {
+      enemies.forEach(e => {
+        ctx.save();
+        ctx.translate(e.x - camera.x, e.y - camera.y);
+        const def = ENEMY_TYPES[e.type];
+        const baseColor = def ? def.color : '#ff8888';
+        const frozenTint = e.frozen > 0 ? '#88ccff' : baseColor;
+        ctx.fillStyle = frozenTint;
+        ctx.shadowColor = frozenTint;
+        ctx.shadowBlur = e.isBoss ? 30 : 12;
+        ctx.beginPath();
+        ctx.arc(0, 0, e.radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        const pct = e.hp / e.maxHp;
+        if (pct < 1) {
+          ctx.fillStyle = 'rgba(0,0,0,0.6)';
+          ctx.fillRect(-e.radius, -e.radius - 8, e.radius * 2, 4);
+          ctx.fillStyle = '#ff5555';
+          ctx.fillRect(-e.radius, -e.radius - 8, e.radius * 2 * pct, 4);
+        }
+
+        ctx.restore();
+      });
+    }
+
+    function drawBullets() {
+      ctx.save();
+      ctx.translate(-camera.x, -camera.y);
+      bullets.forEach(b => {
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = '#88ffdd';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.restore();
+    }
+
+    function drawEnemyBullets() {
+      ctx.save();
+      ctx.translate(-camera.x, -camera.y);
+      enemyBullets.forEach(b => {
+        ctx.fillStyle = '#ff6666';
+        ctx.shadowColor = '#ff0000';
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.restore();
+    }
+
+    function drawSentries() {
+      ctx.save();
+      ctx.translate(-camera.x, -camera.y);
+      sentries.forEach(s => {
+        ctx.fillStyle = '#ccccff';
+        ctx.shadowColor = '#88aaff';
+        ctx.shadowBlur = 14;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, 10, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.restore();
+    }
+
+    function drawWalls() {
+      ctx.save();
+      ctx.translate(-camera.x, -camera.y);
+      walls.forEach(w => {
+        ctx.fillStyle = '#444444';
+        ctx.strokeStyle = '#888888';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.rect(w.x - w.w / 2, w.y - w.h / 2, w.w, w.h);
+        ctx.fill();
+        ctx.stroke();
+      });
+      ctx.restore();
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawGrid();
+      drawWalls();
+      drawSentries();
+      drawEnemies();
+      drawBullets();
+      drawEnemyBullets();
+      drawPlayer();
+    }
+
+    // ------------------------------------------------------------
+    // Main loop
+    // ------------------------------------------------------------
+    function loop() {
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    startWave();
+    loop();
+  </script>
+</body>
+</html>
